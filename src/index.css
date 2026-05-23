@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Cormorant Garamond", Georgia, serif;
+  --font-body: "Outfit", system-ui, sans-serif;
+
+  --color-beige-50: #faf8f5;
+  --color-beige-100: #f3efe8;
+  --color-beige-200: #e8e0d4;
+  --color-beige-300: #d4c8b8;
+  --color-beige-400: #b8a894;
+
+  --color-gold-300: #d4b896;
+  --color-gold-400: #c4a574;
+  --color-gold-500: #a8895a;
+  --color-gold-600: #8a7048;
+
+  --color-charcoal: #1a1a1a;
+  --color-charcoal-light: #2d2d2d;
+  --color-charcoal-muted: #4a4a4a;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-beige-50 font-body text-charcoal antialiased;
+  }
+
+  ::selection {
+    @apply bg-gold-400/30 text-charcoal;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.25s ease-out;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-beige-300) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: var(--color-beige-300);
+    border-radius: 9999px;
+  }
+}
