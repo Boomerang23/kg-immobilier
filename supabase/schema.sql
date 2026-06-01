@@ -9,6 +9,7 @@ create table if not exists public.admin_profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   email text not null unique,
   full_name text,
+  role text not null default 'admin' check (role in ('super_admin', 'admin')),
   created_at timestamptz not null default now()
 );
 
@@ -51,6 +52,7 @@ create table if not exists public.property_images (
 create index if not exists property_images_property_id_idx on public.property_images (property_id);
 create index if not exists properties_slug_idx on public.properties (slug);
 create index if not exists properties_status_idx on public.properties (status);
+create index if not exists admin_profiles_role_idx on public.admin_profiles (role);
 
 -- Updated_at trigger
 create or replace function public.set_updated_at()
@@ -68,7 +70,7 @@ create trigger properties_updated_at
   before update on public.properties
   for each row execute function public.set_updated_at();
 
--- Admin check helper
+-- Admin check helpers
 create or replace function public.is_admin()
 returns boolean
 language sql
@@ -81,6 +83,58 @@ as $$
   );
 $$;
 
+create or replace function public.is_super_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.admin_profiles
+    where id = auth.uid() and role = 'super_admin'
+  );
+$$;
+
+-- Prevent removing/demoting the last super_admin
+create or replace function public.enforce_last_super_admin()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  super_count integer;
+begin
+  if tg_op = 'DELETE' and old.role = 'super_admin' then
+    select count(*) into super_count
+    from public.admin_profiles
+    where role = 'super_admin';
+
+    if super_count <= 1 then
+      raise exception 'Cannot delete the last super_admin';
+    end if;
+  end if;
+
+  if tg_op = 'UPDATE' and old.role = 'super_admin' and new.role <> 'super_admin' then
+    select count(*) into super_count
+    from public.admin_profiles
+    where role = 'super_admin';
+
+    if super_count <= 1 then
+      raise exception 'Cannot demote the last super_admin';
+    end if;
+  end if;
+
+  return coalesce(new, old);
+end;
+$$;
+
+drop trigger if exists admin_profiles_last_super_admin on public.admin_profiles;
+create trigger admin_profiles_last_super_admin
+  before update or delete on public.admin_profiles
+  for each row execute function public.enforce_last_super_admin();
+
 -- Row Level Security
 alter table public.admin_profiles enable row level security;
 alter table public.properties enable row level security;
@@ -92,7 +146,23 @@ create policy "Admins can read own profile"
   to authenticated
   using (auth.uid() = id);
 
--- properties policies
+create policy "Super admins can read all profiles"
+  on public.admin_profiles for select
+  to authenticated
+  using (public.is_super_admin());
+
+create policy "Super admins can update profiles"
+  on public.admin_profiles for update
+  to authenticated
+  using (public.is_super_admin())
+  with check (public.is_super_admin());
+
+create policy "Super admins can delete profiles"
+  on public.admin_profiles for delete
+  to authenticated
+  using (public.is_super_admin());
+
+-- properties policies (admin + super_admin)
 create policy "Public can read properties"
   on public.properties for select
   to anon, authenticated
@@ -164,6 +234,13 @@ create policy "Admins delete property images"
   to authenticated
   using (bucket_id = 'property-images' and public.is_admin());
 
--- After creating an agent account in Authentication → Users, run:
--- insert into public.admin_profiles (id, email, full_name)
--- values ('USER-UUID-HERE', 'agent@example.com', 'KG Immobilier');
+-- =============================================================================
+-- First super_admin (run once after creating the Auth user)
+-- =============================================================================
+-- 1. Authentication → Users → Add user (angegbocho@gmail.com + password)
+-- 2. Copy the user UUID, then run:
+--
+-- insert into public.admin_profiles (id, email, full_name, role)
+-- values ('USER-UUID-HERE', 'angegbocho@gmail.com', 'Ange Gbocho', 'super_admin');
+--
+-- For existing deployments, run: supabase/migrations/20260601000000_add_admin_roles.sql

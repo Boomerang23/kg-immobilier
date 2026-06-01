@@ -1,20 +1,28 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
-import { checkIsAdmin } from '../services/propertyService'
+import { fetchAdminProfile } from '../services/adminService'
+import { ADMIN_ROLES } from '../constants/adminRoles'
 import { AuthContext } from './AuthContext'
 
 export default function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
-  const [isAdmin, setIsAdmin] = useState(false)
+  const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(isSupabaseConfigured)
 
-  const refreshAdmin = useCallback(async (userId) => {
+  const refreshProfile = useCallback(async (userId) => {
     if (!userId) {
-      setIsAdmin(false)
-      return
+      setProfile(null)
+      return null
     }
-    const admin = await checkIsAdmin(userId)
-    setIsAdmin(admin)
+
+    try {
+      const adminProfile = await fetchAdminProfile(userId)
+      setProfile(adminProfile)
+      return adminProfile
+    } catch {
+      setProfile(null)
+      return null
+    }
   }, [])
 
   useEffect(() => {
@@ -24,7 +32,7 @@ export default function AuthProvider({ children }) {
       .getSession()
       .then(({ data }) => {
         setSession(data.session)
-        return refreshAdmin(data.session?.user?.id)
+        return refreshProfile(data.session?.user?.id)
       })
       .finally(() => setLoading(false))
 
@@ -32,11 +40,11 @@ export default function AuthProvider({ children }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession)
-      refreshAdmin(nextSession?.user?.id)
+      refreshProfile(nextSession?.user?.id)
     })
 
     return () => subscription.unsubscribe()
-  }, [refreshAdmin])
+  }, [refreshProfile])
 
   const signIn = useCallback(async (email, password) => {
     if (!supabase) throw new Error('Supabase non configuré')
@@ -44,34 +52,42 @@ export default function AuthProvider({ children }) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
 
-    const admin = await checkIsAdmin(data.user.id)
-    if (!admin) {
+    const adminProfile = await fetchAdminProfile(data.user.id)
+    if (!adminProfile) {
       await supabase.auth.signOut()
       throw new Error('Accès refusé. Ce compte n\'est pas autorisé.')
     }
 
     setSession(data.session)
-    setIsAdmin(true)
+    setProfile(adminProfile)
     return data.session
   }, [])
 
   const signOut = useCallback(async () => {
     if (supabase) await supabase.auth.signOut()
     setSession(null)
-    setIsAdmin(false)
+    setProfile(null)
   }, [])
+
+  const isAdmin = Boolean(profile)
+  const isSuperAdmin = profile?.role === ADMIN_ROLES.SUPER_ADMIN
+  const role = profile?.role ?? null
 
   const value = useMemo(
     () => ({
       session,
       user: session?.user ?? null,
+      profile,
+      role,
       isAdmin,
+      isSuperAdmin,
       loading,
       signIn,
       signOut,
+      refreshProfile,
       isConfigured: isSupabaseConfigured,
     }),
-    [session, isAdmin, loading, signIn, signOut],
+    [session, profile, role, isAdmin, isSuperAdmin, loading, signIn, signOut, refreshProfile],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

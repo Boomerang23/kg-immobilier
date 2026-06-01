@@ -158,15 +158,4 @@ export async function deleteProperty(propertyId) {
   if (error) throw error
 }
 
-export async function checkIsAdmin(userId) {
-  if (!supabase || !userId) return false
-
-  const { data, error } = await supabase
-    .from('admin_profiles')
-    .select('id')
-    .eq('id', userId)
-    .maybeSingle()
-
-  if (error) return false
-  return Boolean(data)
-}
+export { checkIsAdmin } from './adminService'

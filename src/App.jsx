@@ -5,11 +5,13 @@ import AuthProvider from './context/AuthProvider'
 import Navbar from './components/layout/Navbar'
 import Footer from './components/layout/Footer'
 import AdminGuard from './components/admin/AdminGuard'
+import SuperAdminGuard from './components/admin/SuperAdminGuard'
 import { getWhatsAppLink } from './constants'
 
 const HomePage = lazy(() => import('./pages/HomePage'))
 const PropertyDetailPage = lazy(() => import('./pages/PropertyDetailPage'))
 const AdminPage = lazy(() => import('./pages/AdminPage'))
+const AdminUsersPage = lazy(() => import('./pages/AdminUsersPage'))
 const AdminLoginPage = lazy(() => import('./pages/AdminLoginPage'))
 
 function PageLoader() {
@@ -84,6 +86,16 @@ export default function App() {
                 element={
                   <AdminGuard>
                     <AdminPage />
+                  </AdminGuard>
+                }
+              />
+              <Route
+                path="/admin/users"
+                element={
+                  <AdminGuard>
+                    <SuperAdminGuard>
+                      <AdminUsersPage />
+                    </SuperAdminGuard>
                   </AdminGuard>
                 }
               />
