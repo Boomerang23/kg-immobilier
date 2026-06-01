@@ -1,15 +1,24 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import PropertiesProvider from './context/PropertiesProvider'
 import AuthProvider from './context/AuthProvider'
 import Navbar from './components/layout/Navbar'
 import Footer from './components/layout/Footer'
 import AdminGuard from './components/admin/AdminGuard'
-import HomePage from './pages/HomePage'
-import PropertyDetailPage from './pages/PropertyDetailPage'
-import AdminPage from './pages/AdminPage'
-import AdminLoginPage from './pages/AdminLoginPage'
 import { getWhatsAppLink } from './constants'
+
+const HomePage = lazy(() => import('./pages/HomePage'))
+const PropertyDetailPage = lazy(() => import('./pages/PropertyDetailPage'))
+const AdminPage = lazy(() => import('./pages/AdminPage'))
+const AdminLoginPage = lazy(() => import('./pages/AdminLoginPage'))
+
+function PageLoader() {
+  return (
+    <div className="mx-auto flex min-h-[40vh] w-full max-w-6xl items-center justify-center px-6 py-16">
+      <div className="h-10 w-10 animate-spin rounded-full border-2 border-gold-500/30 border-t-gold-500" />
+    </div>
+  )
+}
 
 function WhatsAppFloat() {
   return (
@@ -67,18 +76,20 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <PropertiesProvider>
-          <Routes>
-            <Route path="/admin/login" element={<AdminLoginPage />} />
-            <Route
-              path="/admin"
-              element={
-                <AdminGuard>
-                  <AdminPage />
-                </AdminGuard>
-              }
-            />
-            <Route path="/*" element={<PublicLayout />} />
-          </Routes>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/admin/login" element={<AdminLoginPage />} />
+              <Route
+                path="/admin"
+                element={
+                  <AdminGuard>
+                    <AdminPage />
+                  </AdminGuard>
+                }
+              />
+              <Route path="/*" element={<PublicLayout />} />
+            </Routes>
+          </Suspense>
         </PropertiesProvider>
       </AuthProvider>
     </BrowserRouter>
