@@ -12,6 +12,7 @@ const HomePage = lazy(() => import('./pages/HomePage'))
 const PropertyDetailPage = lazy(() => import('./pages/PropertyDetailPage'))
 const AdminPage = lazy(() => import('./pages/AdminPage'))
 const AdminUsersPage = lazy(() => import('./pages/AdminUsersPage'))
+const AdminAccountPage = lazy(() => import('./pages/AdminAccountPage'))
 const AdminLoginPage = lazy(() => import('./pages/AdminLoginPage'))
 
 function PageLoader() {
@@ -86,6 +87,14 @@ export default function App() {
                 element={
                   <AdminGuard>
                     <AdminPage />
+                  </AdminGuard>
+                }
+              />
+              <Route
+                path="/admin/account"
+                element={
+                  <AdminGuard>
+                    <AdminAccountPage />
                   </AdminGuard>
                 }
               />

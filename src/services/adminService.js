@@ -80,3 +80,35 @@ export async function createAdminUser({ email, password, fullName }) {
 export function isSuperAdminRole(role) {
   return role === ADMIN_ROLES.SUPER_ADMIN
 }
+
+/** Changement privé par l'admin connecté (sans Edge Function). */
+export async function changeOwnPassword({ email, currentPassword, newPassword }) {
+  if (!supabase) throw new Error('Supabase non configuré')
+
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: email.trim().toLowerCase(),
+    password: currentPassword,
+  })
+
+  if (signInError) {
+    throw new Error('Mot de passe actuel incorrect.')
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  if (error) throw error
+}
+
+/** Réinitialisation par le super_admin uniquement (Edge Function + service_role). */
+export async function resetAdminPasswordBySuperAdmin({ userId, password }) {
+  if (!isSupabaseConfigured || !supabase) {
+    throw new Error('Supabase non configuré')
+  }
+
+  const { data, error } = await supabase.functions.invoke('reset-admin-password', {
+    body: { user_id: userId, password },
+  })
+
+  if (error) throw error
+  if (data?.error) throw new Error(data.error)
+  return data
+}

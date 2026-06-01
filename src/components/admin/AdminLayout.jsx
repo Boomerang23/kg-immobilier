@@ -51,6 +51,9 @@ export default function AdminLayout({ children, title, subtitle }) {
             <NavLink to="/admin" end className={navClass}>
               Biens immobiliers
             </NavLink>
+            <NavLink to="/admin/account" className={navClass}>
+              Mon compte
+            </NavLink>
             {isSuperAdmin && (
               <NavLink to="/admin/users" className={navClass}>
                 Administrateurs

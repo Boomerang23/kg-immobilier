@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import AdminLayout from '../components/admin/AdminLayout'
 import DeleteConfirmModal from '../components/admin/DeleteConfirmModal'
+import ResetPasswordModal from '../components/admin/ResetPasswordModal'
 import { useAuth } from '../hooks/useAuth'
 import { BRAND } from '../constants'
 import { ADMIN_ROLES, ADMIN_ROLE_LABELS } from '../constants/adminRoles'
@@ -9,6 +10,7 @@ import {
   createAdminUser,
   updateAdminRole,
   deleteAdminProfile,
+  resetAdminPasswordBySuperAdmin,
 } from '../services/adminService'
 
 export default function AdminUsersPage() {
@@ -20,6 +22,8 @@ export default function AdminUsersPage() {
   const [creating, setCreating] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [toDelete, setToDelete] = useState(null)
+  const [toResetPassword, setToResetPassword] = useState(null)
+  const [resettingPassword, setResettingPassword] = useState(false)
   const [form, setForm] = useState({ email: '', password: '', fullName: '' })
   const [roleUpdatingId, setRoleUpdatingId] = useState(null)
 
@@ -108,6 +112,28 @@ export default function AdminUsersPage() {
     }
   }
 
+  const handleResetPassword = async (password) => {
+    if (!toResetPassword) return
+    setResettingPassword(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      await resetAdminPasswordBySuperAdmin({
+        userId: toResetPassword.id,
+        password,
+      })
+      setSuccess(
+        `Mot de passe réinitialisé pour ${toResetPassword.full_name || toResetPassword.email}. Communiquez le mot de passe temporaire de façon sécurisée.`,
+      )
+      setToResetPassword(null)
+    } catch (err) {
+      setError(err.message || 'Impossible de réinitialiser le mot de passe')
+    } finally {
+      setResettingPassword(false)
+    }
+  }
+
   const handleDelete = async () => {
     if (!toDelete) return
     setError('')
@@ -132,7 +158,7 @@ export default function AdminUsersPage() {
   return (
     <AdminLayout
       title="Gestion des administrateurs"
-      subtitle="Créez des comptes, attribuez les rôles et retirez les accès."
+      subtitle="Créez des comptes, réinitialisez les mots de passe oubliés et gérez les accès."
     >
       {error && (
         <p className="mb-6 rounded-sm bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
@@ -161,7 +187,7 @@ export default function AdminUsersPage() {
         >
           <h3 className="font-display text-xl text-charcoal">Créer un administrateur</h3>
           <p className="mt-1 text-sm text-charcoal-muted">
-            Le compte sera créé avec le rôle « Administrateur ». Mot de passe minimum 8 caractères.
+            Mot de passe temporaire (min. 8 caractères) pour la première connexion.
           </p>
 
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -269,19 +295,28 @@ export default function AdminUsersPage() {
                     </label>
 
                     {!isSelf && (
-                      <button
-                        type="button"
-                        disabled={!canModify}
-                        onClick={() => setToDelete(admin)}
-                        className="rounded-sm border border-red-200 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        title={
-                          !canModify
-                            ? 'Impossible de retirer le dernier super administrateur'
-                            : undefined
-                        }
-                      >
-                        Retirer l&apos;accès
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setToResetPassword(admin)}
+                          className="rounded-sm border border-beige-300 px-4 py-2 text-sm font-medium text-charcoal transition-colors hover:bg-beige-50"
+                        >
+                          Réinitialiser le MDP
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!canModify}
+                          onClick={() => setToDelete(admin)}
+                          className="rounded-sm border border-red-200 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          title={
+                            !canModify
+                              ? 'Impossible de retirer le dernier super administrateur'
+                              : undefined
+                          }
+                        >
+                          Retirer l&apos;accès
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -297,6 +332,13 @@ export default function AdminUsersPage() {
           })}
         </div>
       )}
+
+      <ResetPasswordModal
+        admin={toResetPassword}
+        saving={resettingPassword}
+        onConfirm={handleResetPassword}
+        onCancel={() => setToResetPassword(null)}
+      />
 
       <DeleteConfirmModal
         property={toDelete ? { title: toDelete.full_name || toDelete.email } : null}

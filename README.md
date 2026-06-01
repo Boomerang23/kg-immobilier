@@ -86,26 +86,24 @@ set role = 'super_admin', email = 'angegbocho@gmail.com'
 where email = 'angegbocho@gmail.com';
 ```
 
-### 3. Déployer l'Edge Function `create-admin-user`
+### 3. Déployer les Edge Functions
 
-La création de comptes admin depuis l'interface passe par une Edge Function (clé service_role côté serveur uniquement).
+Ces fonctions utilisent la clé `service_role` **uniquement côté serveur** :
+
+| Fonction | Usage |
+|----------|--------|
+| `create-admin-user` | Créer un compte admin (super_admin) |
+| `reset-admin-password` | Réinitialiser le MDP d'un admin (super_admin, en cas d'oubli) |
 
 ```bash
-# Connexion et liaison du projet
 supabase login
 supabase link --project-ref VOTRE_PROJECT_REF
 
-# Déploiement
 supabase functions deploy create-admin-user
+supabase functions deploy reset-admin-password
 ```
 
-Variables automatiquement disponibles dans l'Edge Function : `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
-
-Test local (optionnel) :
-
-```bash
-supabase functions serve create-admin-user
-```
+Variables automatiques : `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
 
 ### 4. Variables Vercel
 
@@ -145,6 +143,7 @@ Sécurité :
 | `/biens/:slug`      | Alias français                      |
 | `/admin/login`      | Connexion agent                     |
 | `/admin`            | Gestion des biens (admin protégé)   |
+| `/admin/account`    | Mot de passe personnel (tous admins)  |
 | `/admin/users`      | Gestion des admins (super_admin)    |
 
 ## Administration
@@ -160,12 +159,23 @@ Sécurité :
 2. Téléverser couverture et galerie → Supabase Storage
 3. Données synchronisées sur tous les appareils
 
+### Mots de passe
+
+| Action | Qui | Comment |
+|--------|-----|---------|
+| **Changer son mot de passe** | Chaque admin | `/admin/account` |
+| **Première connexion** | Super_admin | Mot de passe temporaire à la création du compte |
+| **Réinitialisation (oubli)** | Super_admin uniquement | `/admin/users` → « Réinitialiser le MDP » (Edge Function) |
+
+Le super_admin change **son** mot de passe via **Mon compte** (pas via la réinitialisation d'un autre compte).
+
 ### Gestion des administrateurs (`super_admin` uniquement)
 
 1. `/admin/users` — liste des comptes
-2. **+ Nouvel administrateur** — email, mot de passe (min. 8 car.), nom
-3. Changer le rôle : Administrateur ↔ Super administrateur
-4. **Retirer l'accès** — supprime la ligne `admin_profiles` (le compte Auth reste, mais n'a plus accès à l'admin)
+2. **+ Nouvel administrateur** — email, mot de passe temporaire (min. 8 car.), nom
+3. **Réinitialiser le MDP** — en cas d'oubli (mot de passe temporaire à transmettre de façon sécurisée)
+4. Changer le rôle : Administrateur ↔ Super administrateur
+5. **Retirer l'accès** — supprime la ligne `admin_profiles`
 
 Un administrateur classique qui ouvre `/admin/users` voit une page **Accès refusé**.
 
@@ -194,7 +204,9 @@ src/
 supabase/
 ├── schema.sql
 ├── migrations/
-└── functions/create-admin-user/
+└── functions/
+    ├── create-admin-user/
+    └── reset-admin-password/
 public/images/
 ```
 
